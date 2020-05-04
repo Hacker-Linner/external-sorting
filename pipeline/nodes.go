@@ -107,6 +107,7 @@ func RandomSource(count int) <-chan int {
 		for i := 0; i < count; i++ {
 			out <- rand.Int()
 		}
+		close(out)
 	}()
 	return out
 }
