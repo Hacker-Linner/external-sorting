@@ -1,11 +1,15 @@
 package pipeline
 
-import "sort"
+import (
+	"encoding/binary"
+	"io"
+	"sort"
+)
 
 func ArraySource(a ...int) <-chan int {
 	// <-chan: 表明用它的人，只能拿东西
 	out := make(chan int)
-	go func ()  {
+	go func() {
 		for _, v := range a {
 			// 这里我们就只能放东西
 			out <- v
@@ -18,7 +22,7 @@ func ArraySource(a ...int) <-chan int {
 func InMemSort(in <-chan int) <-chan int {
 	out := make(chan int)
 
-	go func ()  {
+	go func() {
 		// Read into memory
 		a := []int{}
 		for v := range in {
@@ -27,7 +31,7 @@ func InMemSort(in <-chan int) <-chan int {
 
 		// Sort
 		sort.Ints(a)
-		
+
 		// Output
 		for _, v := range a {
 			out <- v
@@ -41,16 +45,43 @@ func InMemSort(in <-chan int) <-chan int {
 func Merge(in1, in2 <-chan int) <-chan int {
 	out := make(chan int)
 
-	go func ()  {
-		v1, ok1 := <- in1
-		v2, ok2 := <- in2
+	go func() {
+		v1, ok1 := <-in1
+		v2, ok2 := <-in2
 		for ok1 || ok2 {
 			if !ok2 || (ok1 && v1 <= v2) {
 				out <- v1
-				v1, ok1 = <- in1
+				v1, ok1 = <-in1
 			} else {
 				out <- v2
-				v2, ok2 = <- in2
+				v2, ok2 = <-in2
+			}
+		}
+		close(out)
+	}()
+	return out
+}
+
+func ReaderSource(reader io.Reader) <-chan int {
+	out := make(chan int)
+	go func() {
+		// int 是 32 位 还是 64 位，这个根据系统来
+		// 当前是 64 位的，所以这里开一个 64 位的 buffer
+		buffer := make([]byte, 8)
+
+		for {
+			// n: 读了几个字节
+			// err: 是否有错误
+			n, err := reader.Read(buffer)
+			if n > 0 {
+				// 这里选用大端，读写统一就行
+				// 然后转成一个有符号的 int
+				v := int(binary.BigEndian.Uint64(buffer))
+				out <- v
+			}
+			// 如果最后只有4个字节，就 EOF 了
+			if err != nil {
+				break
 			}
 		}
 		close(out)
