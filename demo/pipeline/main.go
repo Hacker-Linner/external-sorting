@@ -8,9 +8,8 @@ import (
 )
 
 func main() {
-	const filename = "large.in"
-	// 弄个 100M 的数据
-	const n = 100000000
+	const filename = "small.in"
+	const n = 64
 
 	file, err := os.Create(filename)
 	if err != nil {
@@ -31,7 +30,7 @@ func main() {
 	}
 	defer file.Close()
 
-	p = pipeline.ReaderSource(bufio.NewReader(file))
+	p = pipeline.ReaderSource(bufio.NewReader(file), -1)
 	count := 0
 	for v := range p {
 		fmt.Println(v)

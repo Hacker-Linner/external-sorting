@@ -63,17 +63,18 @@ func Merge(in1, in2 <-chan int) <-chan int {
 	return out
 }
 
-func ReaderSource(reader io.Reader) <-chan int {
+func ReaderSource(reader io.Reader, chunkSize int) <-chan int {
 	out := make(chan int)
 	go func() {
 		// int 是 32 位 还是 64 位，这个根据系统来
 		// 当前是 64 位的，所以这里开一个 64 位的 buffer
 		buffer := make([]byte, 8)
-
+		bytesRead := 0
 		for {
 			// n: 读了几个字节
 			// err: 是否有错误
 			n, err := reader.Read(buffer)
+			bytesRead += n
 			if n > 0 {
 				// 这里选用大端，读写统一就行
 				// 然后转成一个有符号的 int
@@ -81,7 +82,8 @@ func ReaderSource(reader io.Reader) <-chan int {
 				out <- v
 			}
 			// 如果最后只有4个字节，就 EOF 了
-			if err != nil {
+			// 这里假设 -1 表示全部读
+			if err != nil || (chunkSize != -1 && bytesRead >= chunkSize) {
 				break
 			}
 		}
@@ -110,4 +112,17 @@ func RandomSource(count int) <-chan int {
 		close(out)
 	}()
 	return out
+}
+
+func MergeN(inputs ...<-chan int) <-chan int {
+
+	if len(inputs) == 1 {
+		return inputs[0]
+	}
+
+	m := len(inputs) / 2
+	// merge inputs[0...m) and inputs [m...end)
+	return Merge(
+		MergeN(inputs[:m]...),
+		MergeN(inputs[m:]...))
 }
