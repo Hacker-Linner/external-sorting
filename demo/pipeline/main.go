@@ -1,20 +1,45 @@
 package main
 
 import (
+	"bufio"
 	"external-sorting-on-k8s/pipeline"
 	"fmt"
 	"os"
 )
 
 func main() {
-	file, err := os.Create("small.in")
+	const filename = "large.in"
+	// 弄个 100M 的数据
+	const n = 100000000
+
+	file, err := os.Create(filename)
 	if err != nil {
 		panic(err)
 	}
 	defer file.Close()
 
-	p := pipeline.RandomSource(50)
-	pipeline.WriterSink(file, p)
+	p := pipeline.RandomSource(n)
+	// bufio 设置一个默认的缓冲区
+	writer := bufio.NewWriter(file)
+	pipeline.WriterSink(writer, p)
+	// 注意清空缓冲区，确保所有数据都倒出去
+	writer.Flush()
+
+	file, err = os.Open(filename)
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+
+	p = pipeline.ReaderSource(bufio.NewReader(file))
+	count := 0
+	for v := range p {
+		fmt.Println(v)
+		count++
+		if count >= 100 {
+			break
+		}
+	}
 }
 
 func mergeDemo() {
