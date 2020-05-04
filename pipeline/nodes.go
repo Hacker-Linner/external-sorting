@@ -3,6 +3,7 @@ package pipeline
 import (
 	"encoding/binary"
 	"io"
+	"math/rand"
 	"sort"
 )
 
@@ -98,4 +99,14 @@ func WriterSink(writer io.Writer, in <-chan int) {
 
 		writer.Write(buffer)
 	}
+}
+
+func RandomSource(count int) <-chan int {
+	out := make(chan int)
+	go func() {
+		for i := 0; i < count; i++ {
+			out <- rand.Int()
+		}
+	}()
+	return out
 }

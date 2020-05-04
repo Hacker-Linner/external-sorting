@@ -3,9 +3,21 @@ package main
 import (
 	"external-sorting-on-k8s/pipeline"
 	"fmt"
+	"os"
 )
 
 func main() {
+	file, err := os.Create("small.in")
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+
+	p := pipeline.RandomSource(50)
+	pipeline.WriterSink(file, p)
+}
+
+func mergeDemo() {
 	// p := pipeline.ArraySource(3, 2, 4, 5, 1)
 	// for {
 	// 	if num, ok := <-p; ok {
