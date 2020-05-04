@@ -11,6 +11,9 @@ func main() {
 	const filename = "small.in"
 	const n = 64
 
+	// const filename = "large.in"
+	// const n = 100000000
+
 	file, err := os.Create(filename)
 	if err != nil {
 		panic(err)

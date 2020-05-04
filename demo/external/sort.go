@@ -5,13 +5,31 @@ import (
 	"external-sorting-on-k8s/pipeline"
 	"fmt"
 	"os"
+	"strconv"
 )
 
 func main() {
-	p := createPipeline(
-		"small.in", 512, 4)
-	writeToFile(p, "small.out")
-	printFile("small.out")
+	// p := createPipeline(
+	// 	"small.in", 512, 4)
+	// writeToFile(p, "small.out")
+	// printFile("small.out")
+
+	// p := createPipeline(
+	// 	"large.in", 800000000, 4)
+	// writeToFile(p, "large.out")
+	// printFile("large.out")
+
+	// test
+	// createNetworkPipeline("small.in", 512, 4)
+	// time.Sleep(time.Hour)
+
+	// p := createNetworkPipeline("small.in", 512, 4)
+	// writeToFile(p, "small.out")
+	// printFile("small.out")
+
+	p := createNetworkPipeline("large.in", 800000000, 4)
+	writeToFile(p, "large.out")
+	printFile("large.out")
 }
 
 func printFile(filename string) {
@@ -22,8 +40,13 @@ func printFile(filename string) {
 	defer file.Close()
 
 	p := pipeline.ReaderSource(file, -1)
+	count := 0
 	for v := range p {
 		fmt.Println(v)
+		count++
+		if count >= 100 {
+			break
+		}
 	}
 }
 
@@ -44,6 +67,7 @@ func createPipeline(
 	filename string,
 	filesize, chunkCount int) <-chan int {
 	chunkSize := filesize / chunkCount
+	pipeline.Init()
 
 	sortResults := []<-chan int{}
 	for i := 0; i < chunkCount; i++ {
@@ -62,5 +86,41 @@ func createPipeline(
 		// 收集结果
 		sortResults = append(sortResults, pipeline.InMemSort(source))
 	}
+	return pipeline.MergeN(sortResults...)
+}
+
+func createNetworkPipeline(
+	filename string,
+	filesize, chunkCount int) <-chan int {
+	chunkSize := filesize / chunkCount
+	pipeline.Init()
+
+	sortAddr := []string{}
+	for i := 0; i < chunkCount; i++ {
+		file, err := os.Open(filename)
+		if err != nil {
+			panic(err)
+		}
+
+		file.Seek(int64(i*chunkSize), 0)
+
+		source := pipeline.ReaderSource(
+			bufio.NewReader(file), chunkSize)
+
+		addr := ":" + strconv.Itoa(7000+i)
+		// 开 server
+		pipeline.NetworkSink(addr, pipeline.InMemSort(source))
+		sortAddr = append(sortAddr, addr)
+	}
+
+	sortResults := []<-chan int{}
+	for _, addr := range sortAddr {
+		// 开 client 连接 server
+		sortResults = append(
+			sortResults,
+			pipeline.NetworkSource(addr),
+		)
+	}
+
 	return pipeline.MergeN(sortResults...)
 }

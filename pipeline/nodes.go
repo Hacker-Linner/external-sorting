@@ -2,10 +2,18 @@ package pipeline
 
 import (
 	"encoding/binary"
+	"fmt"
 	"io"
 	"math/rand"
 	"sort"
+	"time"
 )
+
+var startTime time.Time
+
+func Init() {
+	startTime = time.Now()
+}
 
 func ArraySource(a ...int) <-chan int {
 	// <-chan: 表明用它的人，只能拿东西
@@ -21,7 +29,7 @@ func ArraySource(a ...int) <-chan int {
 }
 
 func InMemSort(in <-chan int) <-chan int {
-	out := make(chan int)
+	out := make(chan int, 1024)
 
 	go func() {
 		// Read into memory
@@ -29,9 +37,11 @@ func InMemSort(in <-chan int) <-chan int {
 		for v := range in {
 			a = append(a, v)
 		}
+		fmt.Println("Read done:", time.Now().Sub(startTime))
 
 		// Sort
 		sort.Ints(a)
+		fmt.Println("InMemSort done:", time.Now().Sub(startTime))
 
 		// Output
 		for _, v := range a {
@@ -44,7 +54,7 @@ func InMemSort(in <-chan int) <-chan int {
 }
 
 func Merge(in1, in2 <-chan int) <-chan int {
-	out := make(chan int)
+	out := make(chan int, 1024)
 
 	go func() {
 		v1, ok1 := <-in1
@@ -59,12 +69,13 @@ func Merge(in1, in2 <-chan int) <-chan int {
 			}
 		}
 		close(out)
+		fmt.Println("Merge done:", time.Now().Sub(startTime))
 	}()
 	return out
 }
 
 func ReaderSource(reader io.Reader, chunkSize int) <-chan int {
-	out := make(chan int)
+	out := make(chan int, 1024) // 加个 buffer, 不要发一个收一个
 	go func() {
 		// int 是 32 位 还是 64 位，这个根据系统来
 		// 当前是 64 位的，所以这里开一个 64 位的 buffer
