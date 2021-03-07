@@ -28,6 +28,10 @@ Source -> 节点 -> 节点 -> 节点 -> Sink
 * 这里的节点只有一个输入输出
 * 当然不一定，每个节点可以有多个输入或多个输出，也可以0个输入（Source）,0个输出（Sink）
 
+### 节点的组装 Channel
+
+goroutine ---Channel---> goroutine
+
 **一些节点**
 * 数组数据源节点
   * 注意⚠️： channel 的关闭及检测
